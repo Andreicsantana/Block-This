@@ -14,13 +14,15 @@
   "permissions": ["storage"],
   "host_permissions": [
     "*://*.youtube.com/*",
-    "*://*.instagram.com/*"
+    "*://*.instagram.com/*",
+    "*://*.tiktok.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "*://*.youtube.com/*",
-        "*://*.instagram.com/*"
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*"
       ],
       "js": ["content.js"]
     }
