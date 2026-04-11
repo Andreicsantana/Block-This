@@ -1,4 +1,4 @@
-const REDIRECT_URL = 'https://www.google.com/'
+const DEFAULT_REDIRECT_URL = 'https://www.google.com/'
 
 const DEFAULT_SETTINGS = {
   locked: false,
@@ -9,9 +9,15 @@ const DEFAULT_SETTINGS = {
   },
   timers: {
     unlockAt: '',
+    relockAt: '',
     pauseStart: '',
     pauseEnd: '',
   },
+  redirects: {
+    mode: 'newTab',
+    customUrl: '',
+  },
+  extraSites: '',
 }
 
 let settings = DEFAULT_SETTINGS
@@ -46,16 +52,54 @@ function isNowInTimeRange(startMinutes, endMinutes) {
 
 function allowTotalYouTubeInstagram() {
   const unlockMinutes = parseTimeToMinutes(settings?.timers?.unlockAt)
+  const relockMinutes = parseTimeToMinutes(settings?.timers?.relockAt)
   const pauseStart = parseTimeToMinutes(settings?.timers?.pauseStart)
   const pauseEnd = parseTimeToMinutes(settings?.timers?.pauseEnd)
 
-  return isNowAfter(unlockMinutes) || isNowInTimeRange(pauseStart, pauseEnd)
+  const hasDailyWindow = unlockMinutes !== null && relockMinutes !== null
+    ? isNowInTimeRange(unlockMinutes, relockMinutes)
+    : isNowAfter(unlockMinutes)
+
+  return hasDailyWindow || isNowInTimeRange(pauseStart, pauseEnd)
+}
+
+function getExtraSites() {
+  const rawSites = settings?.extraSites
+
+  if (typeof rawSites !== 'string') return []
+
+  return rawSites
+    .split(/[\n,]/)
+    .map((site) => site.trim().toLowerCase())
+    .filter(Boolean)
+    .map((site) => site.replace(/^https?:\/\//, '').replace(/^www\./, ''))
+}
+
+function isExtraBlockedSite(hostname) {
+  const extraSites = getExtraSites()
+  return extraSites.some((site) => hostname.includes(site))
+}
+
+function openBrowserHomePage() {
+  chrome.runtime.sendMessage({ type: 'BLOCK_THIS_OPEN_HOME' }, () => {
+    if (chrome.runtime.lastError) {
+      location.replace(DEFAULT_REDIRECT_URL)
+    }
+  })
 }
 
 function redirectAway() {
-  if (location.href !== REDIRECT_URL) {
-    location.replace(REDIRECT_URL)
+  const redirectMode = settings?.redirects?.mode || 'newTab'
+  const customUrl = settings?.redirects?.customUrl?.trim()
+
+  if (redirectMode === 'custom' && customUrl) {
+    if (location.href !== customUrl) {
+      location.replace(customUrl)
+    }
+    return
   }
+
+  openBrowserHomePage()
 }
 
 function blockYouTubeShorts() {
@@ -92,6 +136,11 @@ function applyRules() {
   const instagramMode = settings?.rules?.instagram || 'reels'
   const tiktokFull = Boolean(settings?.rules?.tiktokFull)
   const allowTotal = allowTotalYouTubeInstagram()
+
+  if (isExtraBlockedSite(hostname)) {
+    redirectAway()
+    return
+  }
 
   if (hostname.includes('youtube.com')) {
     if (youtubeMode === 'full' && !allowTotal) {
@@ -142,6 +191,11 @@ function normalizeSettings(raw = {}) {
       ...DEFAULT_SETTINGS.timers,
       ...(raw.timers || {}),
     },
+    redirects: {
+      ...DEFAULT_SETTINGS.redirects,
+      ...(raw.redirects || {}),
+    },
+    extraSites: typeof raw.extraSites === 'string' ? raw.extraSites : DEFAULT_SETTINGS.extraSites,
   }
 }
 

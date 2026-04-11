@@ -14,7 +14,68 @@
       html, body {
         margin: 0;
         padding: 0;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
+        background: #050505;
+        color-scheme: dark;
+      }
+
+      html[data-theme='light'], body[data-theme='light'] {
+        background: #ffffff;
+        color-scheme: light;
+      }
+
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar,
+      textarea::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+      }
+
+      html::-webkit-scrollbar-track,
+      body::-webkit-scrollbar-track,
+      textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      html::-webkit-scrollbar-thumb,
+      body::-webkit-scrollbar-thumb,
+      textarea::-webkit-scrollbar-thumb {
+        background: #ffffff;
+        border: 3px solid transparent;
+        background-clip: content-box;
+        border-radius: 999px;
+        min-height: 32px;
+      }
+
+      html::-webkit-scrollbar-thumb:hover,
+      body::-webkit-scrollbar-thumb:hover,
+      textarea::-webkit-scrollbar-thumb:hover {
+        background: #f2f2f2;
+        border: 2px solid transparent;
+        background-clip: content-box;
+      }
+
+      html::-webkit-scrollbar-corner,
+      body::-webkit-scrollbar-corner,
+      textarea::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+
+      html[data-theme='light']::-webkit-scrollbar-thumb,
+      body[data-theme='light']::-webkit-scrollbar-thumb,
+      textarea::-webkit-scrollbar-thumb {
+        background: #000000;
+        border: 3px solid transparent;
+        background-clip: content-box;
+      }
+
+      html[data-theme='light']::-webkit-scrollbar-thumb:hover,
+      body[data-theme='light']::-webkit-scrollbar-thumb:hover,
+      textarea::-webkit-scrollbar-thumb:hover {
+        background: #1a1a1a;
+        border: 2px solid transparent;
+        background-clip: content-box;
       }
     </style>
   </head>

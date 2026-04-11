@@ -9,9 +9,15 @@ const DEFAULT_SETTINGS = {
   },
   timers: {
     unlockAt: '',
+    relockAt: '',
     pauseStart: '',
     pauseEnd: '',
   },
+  redirects: {
+    mode: 'newTab',
+    customUrl: '',
+  },
+  extraSites: '',
 }
 
 function getStorageSync() {
@@ -21,11 +27,19 @@ function getStorageSync() {
 
   return {
     get(defaults, callback) {
+      let blockThisSettings
+
+      try {
+        blockThisSettings = localStorage.getItem('blockThisSettings')
+          ? JSON.parse(localStorage.getItem('blockThisSettings'))
+          : undefined
+      } catch {
+        blockThisSettings = undefined
+      }
+
       const local = {
         theme: localStorage.getItem('blockThisTheme') || undefined,
-        blockThisSettings: localStorage.getItem('blockThisSettings')
-          ? JSON.parse(localStorage.getItem('blockThisSettings'))
-          : undefined,
+        blockThisSettings,
       }
       callback({ ...defaults, ...local })
     },
@@ -55,7 +69,36 @@ function normalizeSettings(raw = {}) {
       ...DEFAULT_SETTINGS.timers,
       ...(raw.timers || {}),
     },
+    redirects: {
+      ...DEFAULT_SETTINGS.redirects,
+      ...(raw.redirects || {}),
+    },
+    extraSites: typeof raw.extraSites === 'string' ? raw.extraSites : DEFAULT_SETTINGS.extraSites,
   }
+}
+
+function parseExtraSites(value) {
+  if (typeof value !== 'string') return []
+
+  return value
+    .split(/[\n,]/)
+    .map((site) => site.trim().toLowerCase())
+    .filter(Boolean)
+    .map((site) => site.replace(/^https?:\/\//, '').replace(/^www\./, ''))
+}
+
+function mergeExtraSites(currentValue, nextValue) {
+  const currentSites = parseExtraSites(currentValue)
+  const nextSites = parseExtraSites(nextValue)
+  const mergedSites = [...currentSites]
+
+  nextSites.forEach((site) => {
+    if (!mergedSites.includes(site)) {
+      mergedSites.push(site)
+    }
+  })
+
+  return mergedSites.join('\n')
 }
 
 function App() {
@@ -72,6 +115,11 @@ function App() {
       setSettings(normalizeSettings(data.blockThisSettings))
     })
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.body.dataset.theme = theme
+  }, [theme])
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
@@ -101,8 +149,41 @@ function App() {
     }))
   }
 
+  const updateRedirect = (key, value) => {
+    if (settings.locked) return
+    setSettings((prev) => ({
+      ...prev,
+      redirects: {
+        ...prev.redirects,
+        [key]: value,
+      },
+    }))
+  }
+
+  const updateExtraSites = (value) => {
+    setSettings((prev) => {
+      const nextExtraSites = prev.locked ? mergeExtraSites(prev.extraSites, value) : value
+      const nextSettings = {
+        ...prev,
+        extraSites: nextExtraSites,
+      }
+
+      if (prev.locked) {
+        storage.set({ blockThisSettings: nextSettings })
+      }
+
+      return nextSettings
+    })
+  }
+
   const saveAndLock = () => {
     if (settings.locked) return
+
+    const hasOneDailyWindowValue = Boolean(settings.timers.unlockAt) !== Boolean(settings.timers.relockAt)
+    if (hasOneDailyWindowValue) {
+      setStatus('Para janela diaria, preencha desbloqueio e reativacao.')
+      return
+    }
 
     const hasOnePauseValue = Boolean(settings.timers.pauseStart) !== Boolean(settings.timers.pauseEnd)
     if (hasOnePauseValue) {
@@ -110,8 +191,19 @@ function App() {
       return
     }
 
+    if (settings.redirects.mode === 'custom' && !settings.redirects.customUrl.trim()) {
+      setStatus('Informe a URL personalizada ou troque para nova aba do navegador.')
+      return
+    }
+
+    const finalRedirects = {
+      ...settings.redirects,
+      customUrl: settings.redirects.customUrl.trim(),
+    }
+
     const finalSettings = {
       ...settings,
+      redirects: finalRedirects,
       locked: true,
     }
 
@@ -123,6 +215,7 @@ function App() {
 
   const isDark = theme === 'dark'
   const isLocked = settings.locked
+  const extraSitesDisplay = settings.locked ? parseExtraSites(settings.extraSites).join('\n') : settings.extraSites
 
   const styles = {
     container: {
@@ -234,6 +327,38 @@ function App() {
       opacity: 0.7,
       minHeight: 18,
     },
+    textarea: {
+      width: '100%',
+      background: isDark ? '#080808' : '#fafafa',
+      color: isDark ? '#ffffff' : '#000000',
+      border: `1px solid ${isDark ? '#2a2a2a' : '#dddddd'}`,
+      borderRadius: 6,
+      minHeight: 74,
+      padding: 10,
+      fontSize: 13,
+      outline: 'none',
+      resize: 'none',
+      opacity: isLocked ? 0.6 : 1,
+      fontFamily: 'inherit',
+    },
+    radioRow: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      fontSize: 13,
+      opacity: isLocked ? 0.6 : 1,
+    },
+    radioOption: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+    helperText: {
+      marginTop: 6,
+      fontSize: 11,
+      lineHeight: 1.4,
+      opacity: 0.6,
+    },
     info: {
       fontSize: 12,
       lineHeight: 1.5,
@@ -304,18 +429,27 @@ function App() {
       <div style={styles.section}>
         <div style={styles.sectionTitle}>Horarios (YouTube/Instagram total)</div>
 
-        <div style={styles.field}>
-          <label style={styles.label}>Desbloqueio diario apos</label>
-          <input
-            style={styles.input}
-            type="time"
-            value={settings.timers.unlockAt}
-            onChange={(e) => updateTimer('unlockAt', e.target.value)}
-            disabled={isLocked}
-          />
-        </div>
-
         <div style={styles.timerGrid}>
+          <div style={styles.field}>
+            <label style={styles.label}>Desbloqueio diario</label>
+            <input
+              style={styles.input}
+              type="time"
+              value={settings.timers.unlockAt}
+              onChange={(e) => updateTimer('unlockAt', e.target.value)}
+              disabled={isLocked}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Reativar bloqueio</label>
+            <input
+              style={styles.input}
+              type="time"
+              value={settings.timers.relockAt}
+              onChange={(e) => updateTimer('relockAt', e.target.value)}
+              disabled={isLocked}
+            />
+          </div>
           <div style={styles.field}>
             <label style={styles.label}>Pausa inicio</label>
             <input
@@ -337,6 +471,68 @@ function App() {
             />
           </div>
         </div>
+        <div style={styles.helperText}>
+          Defina inicio e fim para abrir uma janela diaria. Fora dela, o bloqueio total volta automaticamente.
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>Outros acessos</div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Sites extras para bloquear</label>
+          <textarea
+            style={styles.textarea}
+            value={extraSitesDisplay}
+            onChange={(e) => updateExtraSites(e.target.value)}
+            placeholder="facebook.com, x.com, reddit.com"
+          />
+          <div style={styles.helperText}>
+            Separe por virgula ou quebra de linha. Quando a configuracao estiver travada, voce ainda pode acrescentar novos sites, mas os antigos continuam mantidos.
+          </div>
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Redirecionar para</label>
+          <div style={styles.radioRow}>
+            <label style={styles.radioOption}>
+              <input
+                type="radio"
+                name="redirectMode"
+                value="newTab"
+                checked={settings.redirects.mode === 'newTab'}
+                onChange={(e) => updateRedirect('mode', e.target.value)}
+                disabled={isLocked}
+              />
+              Nova aba do navegador
+            </label>
+            <label style={styles.radioOption}>
+              <input
+                type="radio"
+                name="redirectMode"
+                value="custom"
+                checked={settings.redirects.mode === 'custom'}
+                onChange={(e) => updateRedirect('mode', e.target.value)}
+                disabled={isLocked}
+              />
+              URL personalizada
+            </label>
+          </div>
+        </div>
+
+        {settings.redirects.mode === 'custom' && (
+          <div style={styles.field}>
+            <label style={styles.label}>Endereco de destino</label>
+            <input
+              style={styles.input}
+              type="text"
+              value={settings.redirects.customUrl}
+              onChange={(e) => updateRedirect('customUrl', e.target.value)}
+              disabled={isLocked}
+              placeholder="https://exemplo.com"
+            />
+          </div>
+        )}
       </div>
 
       <button style={styles.saveButton} onClick={saveAndLock} disabled={isLocked}>
