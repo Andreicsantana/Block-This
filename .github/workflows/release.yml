@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Determine next version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          if [ -z "$LATEST" ]; then
+            NEXT=1
+          else
+            CURRENT=$(echo "$LATEST" | sed 's/v//')
+            NEXT=$((CURRENT + 1))
+          fi
+          echo "tag=v${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "name=v${NEXT}" >> "$GITHUB_OUTPUT"
+
+      - name: Create ZIP
+        run: |
+          zip -r "Block-This-${{ steps.version.outputs.tag }}.zip" dist/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "Block-This-${{ steps.version.outputs.tag }}.zip" \
+            --title "${{ steps.version.outputs.name }}" \
+            --generate-notes
