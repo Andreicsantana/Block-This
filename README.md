@@ -1,16 +1,73 @@
-# React + Vite
+# Block This
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Extensão de navegador para bloquear funcionalidades viciantes em redes sociais.
 
-Currently, two official plugins are available:
+## Objetivo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Block This bloqueia conteúdos de alto consumo compulsivo — como YouTube Shorts, Instagram Reels e TikTok — diretamente no navegador. As configurações podem ser travadas com senha implícita (desinstalar a extensão é a única forma de remover as regras), tornando o bloqueio resistente à impulsividade.
 
-## React Compiler
+## Tecnologias
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- Vite 8
+- Chrome Extensions API (Manifest V3)
+- JavaScript (ESModules)
 
-## Expanding the ESLint configuration
+## Download
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Acesse a página de [Releases](https://github.com/Andreicsantana/Block-This/releases) do repositório e baixe o arquivo `.zip` da versão desejada.
+
+O arquivo `.zip` contém a pasta `dist` pronta para instalação, sem necessidade de build.
+
+## Instalação
+
+1. Baixar o `.zip` da versão desejada na [página de Releases](https://github.com/Andreicsantana/Block-This/releases).
+2. Extrair o arquivo `.zip`.
+3. Abrir o gerenciador de extensões do navegador (`chrome://extensions` ou equivalente).
+4. Ativar o **Modo do desenvolvedor**.
+5. Clicar em **Carregar sem compactação**.
+6. Selecionar a pasta `dist` extraída.
+
+> O navegador deve receber a **pasta `dist`**, não o arquivo `.zip`.
+
+## Desenvolvimento
+
+Instalar dependências:
+
+```bash
+npm install
+```
+
+Executar em modo de desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Gerar build de produção:
+
+```bash
+npm run build
+```
+
+A build gera a pasta `dist`, que é a versão pronta para ser carregada no navegador como extensão.
+
+## Estrutura do projeto
+
+```
+block-this/
+├── public/
+│   ├── manifest.json     # Manifest da extensão (MV3)
+│   ├── background.js     # Service worker da extensão
+│   ├── content.js        # Script injetado nas páginas para aplicar as regras
+│   └── icons/            # Ícones da extensão
+├── src/
+│   ├── App.jsx           # Interface do popup da extensão
+│   └── main.jsx          # Ponto de entrada React
+├── dist/                 # Build gerada pelo Vite (usada na instalação)
+└── vite.config.js
+```
+
+## Release
+
+As versões distribuídas aos usuários são publicadas via [GitHub Releases](https://github.com/Andreicsantana/Block-This/releases). Cada release disponibiliza um arquivo `.zip` contendo a pasta `dist` pronta para instalação manual no navegador.
